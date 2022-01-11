@@ -7,6 +7,7 @@ import sys
 parser = argparse.ArgumentParser(prog='Password Generator', description='Use to generate a random string for a password')
 
 parser.add_argument('length', type=int, help='The length of the string returned')
+parser.add_argument('--fullRandom', action='store_true', help='Removes requirement of at least one character type')
 parser.add_argument('--noDigits', action='store_true', help='No digits')
 parser.add_argument('--noUppercase', action='store_true', help='No uppercase characters')
 parser.add_argument('--noLowercase', action='store_true', help='No lowercase characters')
@@ -38,11 +39,9 @@ if not args.noUppercase:
 if not args.noDigits:
   allCharacters += string.digits
 
-
-
+# Check special characters
+specialCharacters = ''
 if not args.noSpecial:
-  specialCharacters = ''
-
   if not args.noExclamation:
     specialCharacters += '!'
   if not args.noAt:
@@ -62,10 +61,65 @@ if not args.noSpecial:
   
   allCharacters += specialCharacters
 
-if not allCharacters:
+if not bool(allCharacters):
   sys.exit('You disallowed all characters!')
 
-randomString = random.choices(allCharacters, k = args.length)
 
-result = ''.join(randomString)
-print(result)
+needsSpecial = not args.noSpecial and bool(specialCharacters)
+needsDigit = not args.noDigits
+needsLowercase = not args.noLowercase
+needsUppercase = not args.noUppercase
+
+needsShuffle = False
+
+# Gather comparator based on how many are required
+comparator = needsSpecial + needsDigit + needsLowercase + needsUppercase
+
+randomList = list()
+length = args.length
+
+# If the length is greater than or equal to the comparator, append random characters and guarantee one of each type
+if length >= comparator and not args.fullRandom:
+  while length > 0:
+    # If less or equal to comparator, choose random character from the necessary list
+    if length <= comparator:
+      if needsSpecial:
+        randomCharacter = random.choice(specialCharacters)
+      elif needsDigit:
+        randomCharacter = random.choice(string.digits)
+      elif needsLowercase:
+        randomCharacter = random.choice(string.ascii_lowercase)
+      elif needsUppercase:
+        randomCharacter = random.choice(string.ascii_uppercase)
+      
+      needsShuffle = True
+    else:
+      randomCharacter = random.choice(allCharacters)
+
+    # Check if one of the unused required types
+    if needsSpecial and randomCharacter in specialCharacters:
+      needsSpecial = False
+      comparator -= 1
+    elif needsDigit and randomCharacter in string.digits:
+      needsDigit = False
+      comparator -= 1
+    elif needsLowercase and randomCharacter in string.ascii_lowercase:
+      needsLowercase = False
+      comparator -= 1
+    elif needsUppercase and randomCharacter in string.ascii_uppercase:
+      needsUppercase = False
+      comparator -= 1
+    
+    randomList += randomCharacter
+    length -= 1
+# Otherwise just get the result back with no guarantees
+else:
+  randomList += random.choices(allCharacters, k = args.length)
+
+# Since the comparator logic isn't random, use shuffle to make it random
+if needsShuffle:
+  random.shuffle(randomList)
+
+randomString = ''.join(randomList)
+
+print(randomString)
